@@ -10,6 +10,7 @@ class Engel:
 
 
 class YayaGecidi(Engel):
+    # ... (Bu sınıfın tamamı aynı, değişiklik yok)
     _tum_yaya_gorselleri = []
 
     def __init__(self, harita, p1, p2, genislik):
@@ -32,39 +33,26 @@ class YayaGecidi(Engel):
 
         if not YayaGecidi._tum_yaya_gorselleri:
             try:
-                tam_gorsel_seti = pygame.image.load("yaya2.png").convert_alpha()
-                yaya_genislik = tam_gorsel_seti.get_width() // 5
-                yaya_yukseklik = tam_gorsel_seti.get_height() // 5
-                for row in range(3):
-                    for col in range(3):
-                        yaya_rect = pygame.Rect(col * yaya_genislik, row * yaya_yukseklik, yaya_genislik, yaya_yukseklik)
-                        tek_yaya = pygame.Surface(yaya_rect.size, pygame.SRCALPHA)
-                        tek_yaya.blit(tam_gorsel_seti, (0, 0), yaya_rect)
-                        YayaGecidi._tum_yaya_gorselleri.append(pygame.transform.scale(tek_yaya, (20, 20)))
+                tek_yaya_orijinal = pygame.image.load("yaya2.png").convert_alpha()
+                scaled_yaya = pygame.transform.scale(tek_yaya_orijinal, (30, 30))
+                YayaGecidi._tum_yaya_gorselleri.append(scaled_yaya)
             except pygame.error:
                 print("Uyarı: 'yaya2.png' dosyası bulunamadı. Yayalar daire olarak çizilecek.")
 
         self.secilen_yaya_orijinal = random.choice(YayaGecidi._tum_yaya_gorselleri) if YayaGecidi._tum_yaya_gorselleri else None
         self.yaya_gorsel_1 = None
         self.yaya_gorsel_2 = None
-
-        # Yaya geçidini yol yönüne dik olarak yerleştir
         self._yol_yonune_dik_yerlestir(p1, p2)
 
     def _yol_yonune_dik_yerlestir(self, p1_orijinal, p2_orijinal):
-        """Yaya geçidini yol yönüne dik olacak şekilde yerleştirir"""
-        # Merkez noktasını hesapla
         merkez_x = (p1_orijinal[0] + p2_orijinal[0]) / 2
         merkez_y = (p1_orijinal[1] + p2_orijinal[1]) / 2
-        
-        # En yakın yol segmentini bul - manuel hesapla (döngüsel import'tan kaçınmak için)
         dogrular = []
         for seg in self.h.yollar:
             for i in range(len(seg) - 1):
                 p1, p2 = seg[i], seg[i + 1]
                 if p1[0] == p2[0] or p1[1] == p2[1]:
                     dogrular.append((p1, p2))
-        
         en_iyi = None
         en_kucuk = float('inf')
         for yol_p1, yol_p2 in dogrular:
@@ -83,38 +71,24 @@ class YayaGecidi(Engel):
                 en_kucuk = dik
                 en_iyi = (yol_p1, yol_p2, (px, py), t, ux, uy)
         sonuc = en_iyi
-        
         if sonuc is None:
-            # Yol bulunamadıysa, orijinal noktaları kullan
             self.p1 = p1_orijinal
             self.p2 = p2_orijinal
         else:
-            # Yol segmentinin yönünü al
             yol_p1, yol_p2, (proj_x, proj_y), _t, ux, uy = sonuc
-            
-            # Yol yönüne dik vektör hesapla (-uy, ux)
             dik_ux = -uy
             dik_uy = ux
-            
-            # Yaya geçidinin uzunluğunu yol genişliğine göre ayarla
-            # Yaya geçidi yolun enine (genişliğine) tam olarak uymalı
             yaya_gecidi_uzunlugu = self.h.YOL_KALINLIK
             yarim = yaya_gecidi_uzunlugu / 2
-            
-            # Yaya geçidini dik vektör boyunca yerleştir
             self.p1 = (proj_x + dik_ux * yarim, proj_y + dik_uy * yarim)
             self.p2 = (proj_x - dik_ux * yarim, proj_y - dik_uy * yarim)
-        
-        # Yaya yönünü hesapla (yayalar yaya geçidi boyunca hareket eder)
         (x1, y1), (x2, y2) = self.p1, self.p2
         vx, vy = (x2 - x1), (y2 - y1)
         uzunluk = math.hypot(vx, vy)
         if uzunluk > 0:
-            # Yayalar yaya geçidi boyunca hareket eder
             self.yaya_aci = math.degrees(math.atan2(-vy, vx))
         else:
             self.yaya_aci = 0
-        
         if self.secilen_yaya_orijinal:
             self.yaya_gorsel_1 = pygame.transform.rotate(self.secilen_yaya_orijinal, self.yaya_aci)
             self.yaya_gorsel_2 = pygame.transform.rotate(self.secilen_yaya_orijinal, self.yaya_aci + 180)
@@ -178,6 +152,15 @@ class YayaGecidi(Engel):
                         self.yaya_konumlari.append(yeni_konum)
                         self.yaya_yonleri.append(yeni_yon)
                         self.yaya_bekleme_suresi = random.randint(30, 120)
+                        
+    def icinde_mi(self, x, y):
+        # çizgisel engeller için ortak nokta-projeksiyon kontrolü
+        try:
+            t, dik, uzunluk = self._proj_ve_mesafe(x, y)
+            return (0 <= t <= uzunluk) and dik <= (self.genislik / 2)
+        except:
+            return False
+
 
     def carpisti_mi(self, x, y):
         if not self.yayalar_aktif_mi:
@@ -225,6 +208,7 @@ class YayaGecidi(Engel):
 
 
 class YolCalismasi(Engel):
+    # ... (Bu sınıfın tamamı aynı, değişiklik yok)
     def __init__(self, harita, p1, p2, genislik):
         self.h = harita
         self.p1 = p1
@@ -246,6 +230,18 @@ class YolCalismasi(Engel):
     def carpisti_mi(self, x, y):
         t, dik, uzunluk = self._proj_ve_mesafe(x, y)
         return (0 <= t <= uzunluk) and (dik <= self.genislik / 2)
+    
+    def icinde_mi(self, x, y):
+        """
+        Aracın bu çizgisel engelin üzerinde olup olmadığını kontrol eder.
+        _proj_ve_mesafe: (t, dik_mesafe, uzunluk)
+        """
+        try:
+            t, dik, uzunluk = self._proj_ve_mesafe(x, y)
+            return (0 <= t <= uzunluk) and (dik <= self.genislik / 2)
+        except:
+            return False
+
 
     def ciz(self):
         ekran = self.h.ekran
@@ -294,7 +290,8 @@ class HizKesici(Engel):
         return (0 <= t <= uzunluk) and (dik <= self.genislik / 2)
 
     def carpisti_mi(self, x, y):
-        return False
+        # Kasis üzerindeki maliyet/çarpışma kontrolleri için kapsama testi
+        return self.icinde_mi(x, y)
 
     def ciz(self):
         ekran = self.h.ekran
@@ -321,8 +318,11 @@ class HizKesici(Engel):
             i += 1
 
 
+# engel.py dosyasındaki TrafikIsigi sınıfı
 class TrafikIsigi(Engel):
-    def __init__(self, harita, c=0, r=0, yon='dikey', baslangic_durumu="kirmizi", kirmizi_sure_sn=7, yesil_sure_sn=5, sari_sure_sn=2):
+    # ... (self.__init__, gorsel_konumunu_guncelle, guncelle metotları aynı kalır)
+    
+    def __init__(self, harita, c=0, r=0, yon='dikey', baslangic_durumu="kirmizi", kirmizi_sure_sn=3, yesil_sure_sn=3, sari_sure_sn=2):
         self.h = harita
         self.c, self.r = c, r
         self.pixel_pos = self.h.kose(c, r)
@@ -404,11 +404,16 @@ class TrafikIsigi(Engel):
 
     def ciz(self):
         ekran = self.h.ekran
-        if not self.surukleniyor_ilk and (self.durum == "kirmizi" or self.durum == "sari"):
+        
+        # <<< GÜNCEL KURAL: STOP ÇİZGİSİ SADECE KIRMIZIDA ÇİZİLİR >>>
+        if not self.surukleniyor_ilk and (self.durum == "kirmizi"):
             try:
-                pygame.draw.line(ekran, self.h.STOP_LINE_RENK, (int(self.stop_line_p1[0]), int(self.stop_line_p1[1])), (int(self.stop_line_p2[0]), int(self.stop_line_p2[1])), 4)
+                pygame.draw.line(ekran, self.h.STOP_LINE_RENK, 
+                                 (int(self.stop_line_p1[0]), int(self.stop_line_p1[1])), 
+                                 (int(self.stop_line_p2[0]), int(self.stop_line_p2[1])), 4)
             except TypeError:
                 pass
+        
         pygame.draw.rect(ekran, self.h.ISIK_KUTU, self.kutu_rect, border_radius=5)
         k, s, y = self.h.KAPALI_KIRMIZI, self.h.KAPALI_SARI, self.h.KAPALI_YESIL
         if self.durum == "kirmizi":
@@ -417,6 +422,7 @@ class TrafikIsigi(Engel):
             s = self.h.ACIK_SARI
         elif self.durum == "yesil":
             y = self.h.ACIK_YESIL
+            
         pygame.draw.circle(ekran, k, (int(self.kirmizi_pos[0]), int(self.kirmizi_pos[1])), int(self.lamba_yaricap))
         pygame.draw.circle(ekran, s, (int(self.sari_pos[0]), int(self.sari_pos[1])), int(self.lamba_yaricap))
         pygame.draw.circle(ekran, y, (int(self.yesil_pos[0]), int(self.yesil_pos[1])), int(self.lamba_yaricap))
@@ -424,8 +430,132 @@ class TrafikIsigi(Engel):
     def carpisti_mi(self, x, y):
         return math.hypot(self.pixel_pos[0] - x, self.pixel_pos[1] - y) < self.h.HUCRE * 0.6
 
+# --- GÜNCELLENMİŞ KAYGAN ZEMİN SINIFI ---
+class KayganZemin(Engel):
+    def __init__(self, harita, p1, p2, genislik, kayma_etkisi=0.3):
+        self.h = harita
+        self.p1 = p1
+        self.p2 = p2
+        self.genislik = genislik
+        self.kayma_etkisi = kayma_etkisi 
+        
+        # Sadece orijinal görseli yükle ve cache'le
+        # Bu, her karede diskten okuma yapmayı engeller
+        self.gorsel_orijinal = None
+        try:
+            gorsel_adi = "buzlu.png" 
+            self.gorsel_orijinal = pygame.image.load(gorsel_adi).convert_alpha() 
+        except Exception as e:
+            print(f"Uyarı: '{gorsel_adi}' görseli yüklenemedi: {e}")
+            
+        # Görselin geçici olarak saklanacağı değişkenler
+        self.gorsel_cache = None
+        self.gorsel_rect_cache = None
+        self.son_p1 = None
+        self.son_p2 = None
 
-# Yardımcı projeksiyon fonksiyonları
+
+    def _proj_ve_mesafe(self, x, y):
+        (x1, y1), (x2, y2) = self.p1, self.p2
+        vx, vy = (x2 - x1), (y2 - y1)
+        uzunluk = math.hypot(vx, vy)
+        if uzunluk == 0:
+            return 0, float('inf'), 0
+        ux, uy = vx / uzunluk, vy / uzunluk
+        wx, wy = x - x1, y - y1
+        t = wx * ux + wy * uy
+        dik = abs(wx * (-uy) + wy * ux)
+        return t, dik, uzunluk
+
+    def icinde_mi(self, x, y):
+        t, dik, uzunluk = self._proj_ve_mesafe(x, y)
+        return (0 <= t <= uzunluk) and (dik <= self.genislik / 2)
+
+    def carpisti_mi(self, x, y):
+        return False
+
+    def _ciz_placeholder(self):
+        """Görsel yüklenemezse veya hata olursa yedek çizim yapar."""
+        ekran = self.h.ekran
+        (x1, y1), (x2, y2) = self.p1, self.p2
+        vx, vy = (x2 - x1), (y2 - y1)
+        L = math.hypot(vx, vy)
+        if L == 0: return
+        ux, uy = vx / L, vy / L
+        px, py = -uy, ux
+        yarim = self.genislik / 2
+        cizgi = max(6, int(self.genislik * 0.18))
+        aralik = cizgi
+        t = 0
+        renkler = [(200, 220, 255), (230, 240, 255)] 
+        i = 0
+        while t <= L:
+            cx = x1 + ux * t
+            cy = y1 + uy * t
+            a = (cx + px * (-yarim), cy + py * (-yarim))
+            b = (cx + px * (yarim), cy + py * (yarim))
+            pygame.draw.line(ekran, renkler[i % 2], a, b, cizgi)
+            t += aralik
+            i += 1
+
+    def ciz(self):
+        ekran = self.h.ekran
+
+        # --- GÜNCELLEME: Görseli p1/p2 değiştiyse yeniden hesapla ---
+        # Bu, sürükleme (main.py'den p1/p2 değiştiğinde) ve
+        # yeniden boyutlandırma (helpers'dan p1/p2 değiştiğinde)
+        # sırasında görselin güncel kalmasını sağlar.
+        
+        # p1 veya p2 değiştiyse, görseli yeniden hesapla
+        if self.p1 != self.son_p1 or self.p2 != self.son_p2:
+            self.son_p1 = self.p1
+            self.son_p2 = self.p2
+            
+            vx, vy = (self.p2[0] - self.p1[0]), (self.p2[1] - self.p1[1])
+            uzunluk = math.hypot(vx, vy)
+            
+            if uzunluk < 1: 
+                uzunluk = 1 # 0'a bölme hatasını engelle
+                
+            aci = math.degrees(math.atan2(-vy, vx))
+            
+            if self.gorsel_orijinal:
+                try:
+                    # Orijinal görseli ölçekle ve döndür
+                    gorsel_olcekli = pygame.transform.scale(
+                        self.gorsel_orijinal, (int(uzunluk), int(self.genislik))
+                    )
+                    gorsel = pygame.transform.rotate(gorsel_olcekli, aci)
+                    
+                    # Resmin merkezini p1-p2 hattının merkezine ata
+                    merkez_x = (self.p1[0] + self.p2[0]) / 2
+                    merkez_y = (self.p1[1] + self.p2[1]) / 2
+                    gorsel_rect = gorsel.get_rect(center=(merkez_x, merkez_y))
+
+                    # Hesaplanan değerleri cache'le
+                    self.gorsel_cache = gorsel
+                    self.gorsel_rect_cache = gorsel_rect
+                    
+                except Exception as e:
+                    # Ölçekleme hatası (genellikle uzunluk=0)
+                    print(f"Hata: Kaygan zemin görseli işlenemedi: {e}")
+                    self.gorsel_cache = None
+                    self.gorsel_rect_cache = None
+            else:
+                self.gorsel_cache = None
+                self.gorsel_rect_cache = None
+
+        # --- Çizim Aşaması ---
+        if self.gorsel_cache and self.gorsel_rect_cache:
+            # Cache'lenmiş (hesaplanmış) görseli ekrana çiz
+            ekran.blit(self.gorsel_cache, self.gorsel_rect_cache)
+        else:
+            # Görsel yoksa veya yüklenemediyse, yedek çizimi yap
+            self._ciz_placeholder()
+# --- SINIF SONU ---
+
+
+# --- YARDIMCI FONKSİYONLAR (GÜNCELLENDİ) ---
 def yol_dogrularini_cikar(yollar_listesi):
     alt = []
     for seg in yollar_listesi:
@@ -483,22 +613,54 @@ def engel_uzunlugunu_degistir(harita, engel, delta_px):
         engel.p1 = (px - ux * yarim, py - uy * yarim)
         engel.p2 = (px + ux * yarim, py + uy * yarim)
 
-
+# 90 derece döndürme fonksiyonu
 def engel_dondur_90(harita, engel):
     if isinstance(engel, TrafikIsigi):
+        # Trafik ışığı için bu kod zaten doğru çalışıyor (dikey/yatay geçişi)
         engel.yon = 'yatay' if engel.yon == 'dikey' else 'dikey'
         engel.gorsel_konumunu_guncelle()
     else:
+        # Diğer engeller için (YayaGecidi, YolCalismasi, HizKesici, KayganZemin)
+        
+        # 1. Engelin mevcut merkezini ve uzunluğunu al
         merkez = ((engel.p1[0] + engel.p2[0]) / 2, (engel.p1[1] + engel.p2[1]) / 2)
         uzunluk = math.hypot(engel.p2[0] - engel.p1[0], engel.p2[1] - engel.p1[1])
+
+        # 2. Engelin mevcut yön vektörünü (unit vector) hesapla
+        if uzunluk < 1e-6:
+            e_ux, e_uy = 1.0, 0.0 # Eğer uzunluk sıfırsa, varsayılan olarak yatay kabul et
+        else:
+            e_ux = (engel.p2[0] - engel.p1[0]) / uzunluk
+            e_uy = (engel.p2[1] - engel.p1[1]) / uzunluk
+
+        # 3. En yakın yol segmentinin merkezini (px, py) ve yön vektörünü (yol_ux, yol_uy) bul
         sonuc = en_yakin_duz_segmente_projeksiyon(harita, *merkez)
         if sonuc is None:
             return
-        _sp1, _sp2, (px, py), _t, ux, uy = sonuc
-        rux, ruy = -uy, ux
+        _sp1, _sp2, (px, py), _t, yol_ux, yol_uy = sonuc
+
+        # 4. Engelin yönü ile yolun yönü paralel mi diye kontrol et
+        # Dot product (iç çarpım) kullan:
+        # Paralel iseler |dot_product| ~ 1
+        # Dik iseler |dot_product| ~ 0
+        dot_product = e_ux * yol_ux + e_uy * yol_uy
+
+        # 5. Yeni yönü belirle
         yarim = uzunluk / 2
-        engel.p1 = (px - rux * yarim, py - ruy * yarim)
-        engel.p2 = (px + rux * yarim, py + ruy * yarim)
-
-
-
+        
+        # abs(dot_product) > 0.9: Engelin yönü yolun yönüne çok yakın (paralel)
+        if abs(dot_product) > 0.9: 
+            # Şu an YOLA PARALEL -> YOLA DİK yap
+            yeni_ux, yeni_uy = -yol_uy, yol_ux
+            engel.p1 = (px - yeni_ux * yarim, py - yeni_uy * yarim)
+            engel.p2 = (px + yeni_ux * yarim, py + yeni_uy * yarim)
+        else:
+            # Şu an YOLA DİK (veya başka bir açıda) -> YOLA PARALEL yap
+            yeni_ux, yeni_uy = yol_ux, yol_uy
+            engel.p1 = (px - yeni_ux * yarim, py - yeni_uy * yarim)
+            engel.p2 = (px + yeni_ux * yarim, py + yeni_uy * yarim)
+            
+        # Not: KayganZemin'in p1/p2'si değiştiği için, 'ciz' fonksiyonu
+        # bir sonraki karede görseli otomatik olarak güncelleyecektir.
+        # Ekstra bir şey yapmaya gerek yok.
+#! --- DÜZELTİLMİŞ FONKSİYON SONU ---
